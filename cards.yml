@@ -1,0 +1,110 @@
+sensor:
+  - platform: template
+    sensors:
+      nextsunrise:
+        entity_id: sun.sun
+        friendly_name: 'Aurinko laskee'
+        value_template: >
+          {{ as_timestamp(states.sun.sun.attributes.next_rising) | timestamp_custom('%H:%M') }}
+        icon_template: mdi:weather-sunset-up
+      nextsunset:
+        entity_id: sun.sun
+        friendly_name: 'Aurinko nousee'
+        value_template: >
+          {{ as_timestamp(states.sun.sun.attributes.next_setting) | timestamp_custom('%H:%M') }}
+        icon_template: mdi:weather-sunset-down
+
+
+type: entities
+entities:
+  - entity: sun.sun
+    name: Aurinko laskee
+    type: attribute
+    attribute: next_setting
+    format: time
+  - entity: sun.sun
+    name: Aurinko nousee
+    type: attribute
+    attribute: next_rising
+    format: time
+
+    
+
+
+type: custom:apexcharts-card
+graph_span: 24h
+header:
+  title: Sähkönhinta tänään (snt/kWh)
+  show: true
+span:
+  start: day
+now:
+  show: true
+  label: Now
+series:
+  - entity: sensor.nordpool_kwh_fi_eur_3_095_024
+    type: column
+    data_generator: |
+      return entity.attributes.raw_today.map((start, index) => {
+        return [new Date(start["start"]).getTime(), entity.attributes.raw_today[index]["value"]];
+      });
+
+
+type: entities
+title: Nordpool-hinnat
+show_header_toggle: false
+icon: mdi:lightning-bolt
+entities:
+  - entity: sensor.nordpool_kwh_fi_eur_3_095_024
+    name: Hinta nyt
+  - type: section
+    label: Päivän tiedot (snt/kWh)
+  - type: attribute
+    entity: sensor.nordpool_kwh_fi_eur_3_095_024
+    name: keskiarvo
+    icon: mdi:chart-line
+    attribute: average
+  - type: attribute
+    entity: sensor.nordpool_kwh_fi_eur_3_095_024
+    name: min
+    icon: mdi:triangle-small-down
+    attribute: min
+  - type: attribute
+    entity: sensor.nordpool_kwh_fi_eur_3_095_024
+    name: max
+    icon: mdi:triangle-small-up
+    attribute: max
+  - type: custom:apexcharts-card
+    graph_span: 24h
+    header:
+      title: Tänään (snt/kWh)
+      show: true
+    span:
+      start: day
+    now:
+      show: true
+      color: var(--primary-color)
+    series:
+      - entity: sensor.nordpool_kwh_fi_eur_3_095_024
+        type: column
+        show:
+          legend_value: true
+        data_generator: |
+          return entity.attributes.raw_today.map((start, index) => {
+            return [new Date(start["start"]).getTime(), entity.attributes.raw_today[index]["value"]];
+          });
+  - type: custom:apexcharts-card
+    graph_span: 1d
+    header:
+      title: Huomenna (snt/kWh)
+      show: true
+    span:
+      start: day
+      offset: +1d
+    series:
+      - entity: sensor.nordpool_kwh_fi_eur_3_095_024
+        type: column
+        data_generator: |
+          return entity.attributes.raw_tomorrow.map((start, index) => {
+            return [new Date(start["start"]).getTime(), entity.attributes.raw_tomorrow[index]["value"]];
+          });

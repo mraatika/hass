@@ -1,0 +1,125 @@
+- id: '1668356255316'
+  alias: outdoor-lights--on
+  description: Sytyttää valot päälle 1h auringonlaskusta
+  trigger:
+  - platform: sun
+    event: sunset
+    offset: +01:00:00
+  condition:
+  - condition: numeric_state
+    entity_id: sensor.nordpool_kwh_fi_eur_2_10_024
+    attribute: current_price
+    below: 40
+  action:
+  - type: turn_on
+    device_id: 94357cb0dcfb15ff7e3add9e58bdce41
+    entity_id: switch.ulko_socket_1
+    domain: switch
+  mode: single
+- id: '1668356542201'
+  alias: outdoor-lights--off
+  description: Sulkee ulkovalot mikäli sähkön hinta kohoaa liian korkeaksi tai kello
+    23.00.
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.nordpool_kwh_fi_eur_2_10_024
+    above: 40
+  - platform: time
+    at: '23:00:00'
+  condition:
+  - condition: device
+    type: is_on
+    device_id: 94357cb0dcfb15ff7e3add9e58bdce41
+    entity_id: switch.ulko_socket_1
+    domain: switch
+  action:
+  - type: turn_off
+    device_id: 94357cb0dcfb15ff7e3add9e58bdce41
+    entity_id: switch.ulko_socket_1
+    domain: switch
+  mode: single
+- id: '1669738681554'
+  alias: Varaajan käynnistysaika
+  description: Tallenna lämminvesivaraajan käynnistysaika. Käynnistysaika on halvimman
+    3h jakson aloitustunti.
+  trigger:
+  - platform: state
+    entity_id:
+    - sensor.cheapest_hours_energy_tomorrow
+    from: unknown
+  condition: []
+  action:
+  - service: input_datetime.set_datetime
+    data:
+      timestamp: '{{ as_timestamp(states(''sensor.cheapest_hours_energy_tomorrow''))
+        }}'
+    target:
+      entity_id: input_datetime.varaajan_aloitusaika
+  mode: single
+- id: '1669739633467'
+  alias: Varaajan käynnistys
+  description: Varaajan käynnistäminen halvimman 3h jakson alussa.
+  trigger:
+  - platform: time
+    at: input_datetime.varaajan_aloitusaika
+  condition: []
+  action:
+  - type: turn_on
+    device_id: caf71b42959d4a00d4520a2d0db1fb0b
+    entity_id: switch.boileri_socket_1
+    domain: switch
+  mode: single
+- id: '1669739747554'
+  alias: Varaajan sammutus
+  description: Sammuttaa varaajan kun 3h on kulunut.
+  trigger:
+  - platform: device
+    type: turned_on
+    device_id: caf71b42959d4a00d4520a2d0db1fb0b
+    entity_id: switch.boileri_socket_1
+    domain: switch
+  condition: []
+  action:
+  - delay:
+      hours: 3
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - type: turn_off
+    device_id: caf71b42959d4a00d4520a2d0db1fb0b
+    entity_id: switch.boileri_socket_1
+    domain: switch
+  mode: single
+- id: '1669814806557'
+  alias: Varaston lämmityksen lisälämmityksen käynnistys
+  description: Käynnistä varaston lisälämmitys kun lämpötila lähestyy nollaa.
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.lampomittari_varasto_temperature
+    below: 1
+  condition: []
+  action:
+  - type: turn_on
+    device_id: 4bc25023c71011ed63b496b544ee4604
+    entity_id: switch.ex_jaakaappi_socket_1
+    domain: switch
+  mode: single
+- id: '1669815022091'
+  alias: Varaston lisälämmityksen katkaisu
+  description: Lopeta varaston lisälämmitys kun lämpötila on riittävä.
+  trigger:
+  - platform: numeric_state
+    entity_id: sensor.lampomittari_varasto_temperature
+    above: 5
+  condition:
+  - condition: device
+    type: is_on
+    device_id: 4bc25023c71011ed63b496b544ee4604
+    entity_id: switch.ex_jaakaappi_socket_1
+    domain: switch
+  action:
+  - type: turn_off
+    device_id: 4bc25023c71011ed63b496b544ee4604
+    entity_id: switch.ex_jaakaappi_socket_1
+    domain: switch
+  mode: single

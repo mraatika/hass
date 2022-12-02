@@ -1,0 +1,99 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+nordpool:
+
+sensor:
+  - platform: nordpool
+
+    # Should the prices include vat? Default True
+    VAT: true
+
+    # What currency the api fetches the prices in
+    # this is only need if you want a sensor in a non local currency
+    currency: "EUR"
+
+    # Option to show prices in cents (or the equivalent in local currency)
+    price_in_cents: true
+
+    # Helper so you can set your "low" price
+    # low_price = hour_price < average * low_price_cutoff
+    low_price_cutoff: 0.95
+
+    # What power regions your are interested in.
+    # Possible values: "DK1", "DK2", "FI", "LT", "LV", "Oslo", "Kr.sand", "Bergen", "Molde", "Tr.heim", "Tromsø", "SE1", "SE2", "SE3","SE4", "S>    region: "FI"
+
+    # How many decimals to use in the display of the price
+    precision: 3
+
+    # What the price should be displayed in default
+    # Possible values: MWh, kWh and Wh
+    # default: kWh
+    price_type: kWh
+
+  - platform: nordpool_diff
+    nordpool_entity: sensor.nordpool_kwh_fi_eur_2_10_024
+    filter_length: 10
+    filter_type: triangle
+    unit: EUR/kWh/h
+    normalize: "no"
+
+  - platform: nordpool_diff
+    nordpool_entity: sensor.nordpool_kwh_fi_eur_2_10_024
+    filter_length: 12
+    filter_type: interval
+    unit: EUR/kWh/h
+    normalize: "no"
+
+  - platform: template
+    sensors:
+      cheapest_hours_energy_tomorrow:
+        device_class: timestamp
+        friendly_name: Cheapest sequential electricity hours
+        value_template: >
+          {%- set numberOfSequentialHours = 3 -%}
+          {%- set lastHour = 23 -%}
+          {%- set firstHour = 0 -%}
+
+          {%- if state_attr('sensor.nordpool_kwh_fi_eur_2_10_024', 'tomorrow_valid') == true -%}
+            {%- set ns = namespace(counter=0, list=[], cheapestHour=today_at("00:00") + timedelta( hours = (24)), cheapestPrice=999.00) -%}
+            {%- for i in range(firstHour + numberOfSequentialHours, lastHour+1) -%}
+              {%- set ns.counter = 0.0 -%}
+              {%- for j in range(i-numberOfSequentialHours, i) -%}
+                {%- set ns.counter = ns.counter + state_attr('sensor.nordpool_kwh_fi_eur_2_10_024', 'tomorrow')[j] -%}
+              {%- endfor -%}
+              {%- set ns.list = ns.list + [ns.counter] -%}
+              {%- if ns.counter < ns.cheapestPrice -%}
+                {%- set ns.cheapestPrice = ns.counter -%}
+                {%- set ns.cheapestHour = today_at("00:00") + timedelta( hours = (24 + i - numberOfSequentialHours)) -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {{ ns.cheapestHour }}
+            {%- set ns.cheapestPrice = ns.cheapestPrice / numberOfSequentialHours -%}
+          {%- endif -%}
+  - platform: template
+    sensors:
+      nextsunrise:
+        entity_id: sun.sun
+        friendly_name: 'Aurinko nousee'
+        value_template: >
+          {{ as_timestamp(states.sun.sun.attributes.next_rising) | timestamp_custom('%H:%M') }}
+        icon_template: mdi:weather-sunset-up
+      nextsunset:
+        entity_id: sun.sun
+        friendly_name: 'Aurinko laskee'
+        value_template: >
+          {{ as_timestamp(states.sun.sun.attributes.next_setting) | timestamp_custom('%H:%M') }}
+        icon_template: mdi:weather-sunset-down
